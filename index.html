@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CodeRun</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mu:#6b7280;--bd:#d8dce2;--ac:#2563eb;--er:#dc2626;--ok:#16a34a}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f1115;--card:#181b21;--tx:#e6e8eb;--mu:#8b93a1;--bd:#2c313a;--ac:#3b82f6;--er:#f87171;--ok:#4ade80}}
+:root[data-theme=dark]{--bg:#0f1115;--card:#181b21;--tx:#e6e8eb;--mu:#8b93a1;--bd:#2c313a;--ac:#3b82f6;--er:#f87171;--ok:#4ade80}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px system-ui,sans-serif;padding:env(safe-area-inset-top,0) 10px env(safe-area-inset-bottom,0)}
+header,.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+h1{font-size:18px;margin:0;flex:1}
+button,select{font:inherit;min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx)}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:600}
+button.p.stop{background:var(--er);border-color:var(--er)}
+label{display:block;font-size:13px;color:var(--mu);margin:10px 0 4px}
+textarea{width:100%;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);font:14px/1.45 ui-monospace,Menlo,Consolas,monospace;padding:10px;resize:vertical;tab-size:4}
+#code{height:42vh;min-height:220px}#stdin{height:70px}
+.sym{display:flex;gap:6px;overflow-x:auto;padding:6px 0}
+.sym button{min-width:44px;padding:0 10px;flex:none}
+pre{margin:0;min-height:90px;max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-word;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace}
+.err{color:var(--er)}#st{font-size:13px;color:var(--mu);margin:6px 0 20px}
+</style>
+</head>
+<body>
+<header>
+<h1>CodeRun</h1>
+<button id="lg">VI/EN</button><button id="th">◐</button>
+</header>
+<div class="row">
+<select id="lang"><option value="python">Python</option><option value="javascript">JavaScript</option><option value="c">C</option><option value="cpp">C++</option><option disabled>Java (soon)</option></select>
+<button class="p" id="run"></button>
+</div>
+<div class="sym" id="sym"></div>
+<textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+<label data-i="input"></label>
+<textarea id="stdin" spellcheck="false" autocapitalize="off">3 4</textarea>
+<div class="row"><button id="save" data-i="save"></button><button id="open" data-i="open"></button><button id="share" data-i="share"></button><input type="file" id="file" hidden></div>
+<label data-i="output"></label>
+<pre id="out"></pre>
+<div id="st"></div>
+<script>
+const $=s=>document.querySelector(s);
+const T={vi:{run:'▶ Chạy',stop:'■ Dừng',save:'Lưu file',open:'Mở file',share:'Chia sẻ link',input:'Dữ liệu đầu vào (stdin)',output:'Kết quả',ready:'Sẵn sàng',loading:'Đang tải trình chạy (lần đầu hơi lâu)…',running:'Đang chạy…',done:'Hoàn tất',timeout:'Quá 10 giây, đã dừng chương trình.',copied:'Đã sao chép link chia sẻ'},
+en:{run:'▶ Run',stop:'■ Stop',save:'Save file',open:'Open file',share:'Share link',input:'Input data (stdin)',output:'Output',ready:'Ready',loading:'Loading runtime (slow on first run)…',running:'Running…',done:'Done',timeout:'Over 10 seconds, program stopped.',copied:'Share link copied'}};
+let lg=localStorage.lg||(navigator.language.startsWith('vi')?'vi':'en'),stKey='ready',isBusy=false;
+const t=k=>T[lg][k];
+function tr(){document.documentElement.lang=lg;document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));$('#run').textContent=t(isBusy?'stop':'run');$('#st').textContent=t(stKey)}
+function setSt(k){stKey=k;$('#st').textContent=t(k)}
+$('#lg').onclick=()=>{lg=lg==='vi'?'en':'vi';try{localStorage.lg=lg}catch(e){}tr()};
+$('#th').onclick=()=>{const d=document.documentElement,cur=d.dataset.theme||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');d.dataset.theme=cur==='dark'?'light':'dark';try{localStorage.th=d.dataset.theme}catch(e){}};
+try{if(localStorage.th)document.documentElement.dataset.theme=localStorage.th}catch(e){}
+
+const TPL={python:'a, b = map(int, input().split())\nprint(a + b)\n',
+javascript:'const [a, b] = input().split(" ").map(Number);\nconsole.log(a + b);\n',
+c:'#include <stdio.h>\n\nint main() {\n    int a, b;\n    scanf("%d %d", &a, &b);\n    printf("%d\\n", a + b);\n    return 0;\n}\n',
+cpp:'#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b;\n    cin >> a >> b;\n    cout << a + b << endl;\n    return 0;\n}\n'};
+const EXT={python:'py',javascript:'js',c:'c',cpp:'cpp'},KEY={python:'py',javascript:'js',c:'cpp',cpp:'cpp'};
+let prev='python';
+$('#code').value=TPL.python;
+$('#lang').onchange=()=>{const c=$('#code');if(!c.value.trim()||c.value===TPL[prev])c.value=TPL[$('#lang').value];prev=$('#lang').value};
+
+// symbol bar
+['Tab','{','}','(',')','[',']',';','"',"'",'<','>','=','&','*','#'].forEach(s=>{const b=document.createElement('button');b.textContent=s==='Tab'?'⇥':s;b.onmousedown=e=>e.preventDefault();b.onclick=()=>{const c=$('#code');c.focus();c.setRangeText(s==='Tab'?'    ':s,c.selectionStart,c.selectionEnd,'end')};$('#sym').appendChild(b)});
+$('#code').addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();const c=e.target;c.setRangeText('    ',c.selectionStart,c.selectionEnd,'end')}});
+
+// worker bodies
+const WK={
+js(){const post=m=>self.postMessage(m);onmessage=async e=>{const L=e.data.stdin.split('\n');const input=()=>L.length?L.shift():null;
+const f=x=>typeof x==='object'&&x!==null?JSON.stringify(x):String(x);
+const out=err=>(...a)=>post({o:a.map(f).join(' ')+'\n',err});
+const con={log:out(0),info:out(0),warn:out(1),error:out(1)};
+try{await new(Object.getPrototypeOf(async function(){}).constructor)('console','input','prompt','readline',e.data.code)(con,input,input,input)}catch(x){post({o:String(x)+'\n',err:1})}
+post({done:1})}},
+py(){const post=m=>self.postMessage(m);importScripts('https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js');let py;
+onmessage=async e=>{try{if(!py){py=await loadPyodide();post({ready:1})}else post({ready:1});
+const L=e.data.stdin.split('\n');py.setStdin({stdin:()=>L.length?L.shift():null});
+py.setStdout({batched:s=>post({o:s+'\n'})});py.setStderr({batched:s=>post({o:s+'\n',err:1})});
+const g=py.globals.get('dict')();try{await py.runPythonAsync(e.data.code,{globals:g})}finally{g.destroy()}}
+catch(x){post({o:String(x.message||x)+'\n',err:1})}post({done:1})}},
+cpp(){const post=m=>self.postMessage(m);importScripts('https://cdn.jsdelivr.net/npm/JSCPP@2.0.9/dist/JSCPP.es5.min.js');
+onmessage=e=>{post({ready:1});try{const code=e.data.code.replace(/#include\s*<(stdio|stdlib|string|math|ctype|time)\.h>/g,'#include <c$1>');
+JSCPP.run(code,e.data.stdin,{stdio:{write:s=>post({o:s})}})}catch(x){post({o:'\n'+String(x.message||x)+'\n',err:1})}post({done:1})}}
+};
+const W={},RD={};let timer,curK=null;
+function mk(k){const src='('+WK[k]+')()';return new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})))}
+function add(s,err){const o=$('#out');if(o.textContent.length>200000)return;const n=document.createElement('span');if(err)n.className='err';n.textContent=s;o.appendChild(n);o.scrollTop=o.scrollHeight}
+function busy(b){isBusy=b;$('#run').classList.toggle('stop',b);$('#run').textContent=t(b?'stop':'run')}
+function arm(ms){clearTimeout(timer);timer=setTimeout(()=>kill('timeout'),ms)}
+function kill(msg){clearTimeout(timer);if(curK){W[curK]&&W[curK].terminate();delete W[curK];RD[curK]=0;curK=null}if(msg)add('\n'+t(msg)+'\n',1);busy(false);setSt('ready')}
+function run(){if(isBusy){kill();return}
+const k=KEY[$('#lang').value];$('#out').textContent='';busy(true);curK=k;
+const w=W[k]||(W[k]=mk(k));setSt(RD[k]?'running':'loading');arm(RD[k]?10000:90000);
+w.onmessage=e=>{const d=e.data;if(d.ready){RD[k]=1;setSt('running');arm(10000)}if(d.o!=null)add(d.o,d.err);if(d.done){clearTimeout(timer);curK=null;busy(false);setSt('done')}};
+w.onerror=e=>{add((e.message||'Error')+'\n',1);kill()};
+w.postMessage({code:$('#code').value,stdin:$('#stdin').value})}
+$('#run').onclick=run;
+
+// save / open / share
+$('#save').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([$('#code').value],{type:'text/plain'}));a.download='main.'+EXT[$('#lang').value];a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('#open').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const ext=f.name.split('.').pop().toLowerCase();const l=Object.keys(EXT).find(x=>EXT[x]===ext);if(l){$('#lang').value=l;prev=l}f.text().then(x=>{$('#code').value=x});e.target.value=''};
+$('#share').onclick=async()=>{const d=JSON.stringify({l:$('#lang').value,c:$('#code').value,i:$('#stdin').value});const u=location.href.split('#')[0]+'#'+btoa(unescape(encodeURIComponent(d)));
+try{await navigator.clipboard.writeText(u);setSt('copied')}catch(e){prompt('Link:',u)}};
+try{if(location.hash.length>1){const d=JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1)))));if(EXT[d.l]){$('#lang').value=d.l;prev=d.l}$('#code').value=d.c||'';$('#stdin').value=d.i||''}}catch(e){}
+tr();
+</script>
+</body>
+</html>
