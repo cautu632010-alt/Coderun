@@ -85,7 +85,7 @@ onmessage=e=>{post({ready:1});try{const code=e.data.code.replace(/#include\s*<(s
 JSCPP.run(code,e.data.stdin,{stdio:{write:s=>post({o:s})}})}catch(x){post({o:'\n'+String(x.message||x)+'\n',err:1})}post({done:1})}}
 };
 const W={},RD={};let timer,curK=null;
-function mk(k){const src='('+WK[k]+')()';return new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})))}
+function mk(k){const src='(function'+String(WK[k]).replace(/^\w+/,'')+')()';return new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})))}
 function add(s,err){const o=$('#out');if(o.textContent.length>200000)return;const n=document.createElement('span');if(err)n.className='err';n.textContent=s;o.appendChild(n);o.scrollTop=o.scrollHeight}
 function busy(b){isBusy=b;$('#run').classList.toggle('stop',b);$('#run').textContent=t(b?'stop':'run')}
 function arm(ms){clearTimeout(timer);timer=setTimeout(()=>kill('timeout'),ms)}
