@@ -37,11 +37,22 @@ button{font:inherit;color:var(--tx);cursor:pointer}
 .sym{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:8px 10px calc(env(safe-area-inset-bottom,0px) + 8px);background:var(--glass);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--bd);box-shadow:0 -6px 24px rgba(0,0,0,.35);scrollbar-width:none}
 .sym::-webkit-scrollbar{display:none}
 .sym button{flex:none;min-width:42px;min-height:38px;border-radius:9px;border:1px solid var(--bd);background:transparent}
-#code{display:block;width:100%;height:40vh;min-height:230px;resize:vertical;border:0;outline:0;background:transparent;color:var(--tx);font:14px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;padding:12px;tab-size:4;caret-color:var(--a)}
+.ed{display:flex;height:44vh;min-height:250px;background:var(--term)}
+.gut,#hl,#code{font:var(--fs,14px)/1.55 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;tab-size:4;white-space:pre;letter-spacing:0;margin:0;border:0}
+.gut{flex:none;min-width:40px;padding:12px 8px 12px 10px;text-align:right;color:var(--mu);overflow:hidden;-webkit-user-select:none;user-select:none;border-right:1px solid var(--bd)}
+.cw{position:relative;flex:1;min-width:0}
+#hl,#code{position:absolute;inset:0;padding:12px}
+#hl{overflow:hidden;color:var(--tx);pointer-events:none}
+#code{overflow:auto;resize:none;outline:0;background:transparent;color:transparent;-webkit-text-fill-color:transparent;caret-color:var(--a);overflow-wrap:normal;word-break:normal;scrollbar-width:thin}
+#code::selection{background:rgba(34,211,238,.35)}
+:root{--fs:14px;--kw:#c792ff;--ty:#5eead4;--st:#86efac;--nu:#fbbf24;--cm:#6b7fa3;--fn:#7dd3fc;--pp:#f472b6}
+:root[data-theme=light]{--kw:#7c3aed;--ty:#0f766e;--st:#15803d;--nu:#b45309;--cm:#64748b;--fn:#0369a1;--pp:#be185d}
+#hl .kw{color:var(--kw);font-weight:600}#hl .ty{color:var(--ty)}#hl .st{color:var(--st)}#hl .nu{color:var(--nu)}#hl .cm{color:var(--cm);font-style:italic}#hl .fn{color:var(--fn)}#hl .pp{color:var(--pp)}
+.bar{flex-wrap:nowrap}.bar em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.bar button{padding:0 8px}
 .run{width:100%;min-height:54px;margin:2px 0 12px;border:0;border-radius:14px;font:800 15px Orbitron,system-ui,sans-serif;letter-spacing:3px;color:#04121c;background:linear-gradient(90deg,var(--a),var(--b));box-shadow:0 0 26px rgba(34,211,238,.4),0 0 40px rgba(168,85,247,.25)}
 .run:active{transform:scale(.985)}
 .run.stop{background:linear-gradient(90deg,#ff5c7a,#fb923c);color:#1b0610;box-shadow:0 0 26px rgba(255,92,122,.45)}
-#out{margin:0;min-height:130px;max-height:46vh;overflow:auto;padding:12px;white-space:pre-wrap;word-break:break-word;background:var(--term);color:var(--tt);font:14px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+#out{margin:0;min-height:130px;max-height:46vh;overflow:auto;padding:12px;white-space:pre-wrap;word-break:break-word;background:var(--term);color:var(--tt);font:var(--fs,14px)/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
 #out .err{color:var(--er)}#out .in{color:var(--ok)}
 .tin{width:14ch;min-width:6ch;padding:0 2px;border:0;border-bottom:1px solid var(--a);outline:0;background:transparent;color:var(--ok);font:inherit;caret-color:var(--a);border-radius:0}
 .stat{display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0}
@@ -59,8 +70,8 @@ button{font:inherit;color:var(--tx);cursor:pointer}
 </header>
 <div class="selw"><select id="lang"></select></div>
 <section class="card">
-<div class="bar"><i></i><i></i><i></i><em id="fn">main.py</em><button id="save" data-i="save"></button><button id="open" data-i="open"></button><button id="share" data-i="share"></button></div>
-<textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+<div class="bar"><i></i><i></i><i></i><em id="fn">main.py</em><button id="fm" aria-label="smaller">A−</button><button id="fp" aria-label="bigger">A+</button><button id="save" data-i="save"></button><button id="open" data-i="open"></button><button id="share" data-i="share"></button></div>
+<div class="ed"><div class="gut" id="gut" aria-hidden="true">1</div><div class="cw"><pre id="hl" aria-hidden="true"></pre><textarea id="code" wrap="off" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea></div></div>
 </section>
 <button class="run" id="run"></button>
 <section class="card">
@@ -141,12 +152,39 @@ let LANG='python';
 Object.keys(LANGS).forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=LANGS[l].n;$('#lang').appendChild(o)});
 {const o=document.createElement('option');o.disabled=true;o.textContent='Java · soon';$('#lang').appendChild(o)}
 $('#lang').onchange=e=>setLang(e.target.value);
-function setLang(l){const c=$('#code');if(!c.value.trim()||c.value===TPL[LANG])c.value=TPL[l];LANG=l;$('#lang').value=l;$('#fn').textContent='main.'+LANGS[l].e}
+function setLang(l){const c=$('#code');if(!c.value.trim()||c.value===TPL[LANG])c.value=TPL[l];LANG=l;$('#lang').value=l;$('#fn').textContent='main.'+LANGS[l].e;render()}
 $('#code').value=TPL.python;
 
 let lastF=$('#code');document.addEventListener('focusin',e=>{if(e.target.id==='code'||e.target.classList.contains('tin'))lastF=e.target});
-['Tab','{','}','(',')','[',']',';','"',"'",'<','>','=','&','*','#'].forEach(s=>{const b=document.createElement('button');b.textContent=s==='Tab'?'⇥':s;b.onmousedown=e=>e.preventDefault();b.onclick=()=>{const c=lastF.isConnected?lastF:$('#code');c.focus();c.setRangeText(s==='Tab'?'    ':s,c.selectionStart,c.selectionEnd,'end')};$('#sym').appendChild(b)});
-$('#code').addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();const c=e.target;c.setRangeText('    ',c.selectionStart,c.selectionEnd,'end')}});
+['Tab','{','}','(',')','[',']',';','"',"'",'<','>','=','&','*','#'].forEach(s=>{const b=document.createElement('button');b.textContent=s==='Tab'?'⇥':s;b.onmousedown=e=>e.preventDefault();b.onclick=()=>{const c=lastF.isConnected?lastF:$('#code');c.focus();ins(c,s==='Tab'?'    ':s)};$('#sym').appendChild(b)});
+$('#code').addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();ins(e.target,'    ')}});
+
+const S=x=>new Set(x.split(' '));const KC='auto break case const continue default do else enum extern for goto if inline return sizeof static struct switch typedef union volatile while NULL true false';
+const KW={python:S('and as assert break class continue def del elif else except finally for from global if import in is lambda not or pass raise return try while with yield None True False async await nonlocal'),javascript:S('break case catch class const continue default delete do else export extends finally for function if import in instanceof let new of return static super switch this throw try typeof var void while yield async await null true false undefined'),c:S(KC),cpp:S(KC+' class namespace using new delete public private protected template typename this try catch throw nullptr virtual operator')};
+const TY={python:S('int str float list dict set tuple bool'),javascript:S('Array Object String Number Boolean Math JSON Map Set Promise console'),c:S('int char float double long short unsigned signed void size_t FILE'),cpp:S('int char float double long short unsigned signed void bool size_t string vector cout cin endl')};
+function esc(x){return x.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function hl(code,l){const py=l==='python',cc=l==='c'||l==='cpp';
+const cm=py?'#[^\\n]*':'\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?(?:\\*\\/|$)';
+const q='"(?:\\\\.|[^"\\\\\\n])*"?|\'(?:\\\\.|[^\'\\\\\\n])*\'?';
+const st=py?'"""[\\s\\S]*?(?:"""|$)|\'\'\'[\\s\\S]*?(?:\'\'\'|$)|'+q:(l==='javascript'?'`(?:\\\\[\\s\\S]|[^`\\\\])*`?|':'')+q;
+const re=new RegExp('('+(cc?'^[ \\t]*#[^\\n]*':'(?!)')+')|('+cm+')|('+st+')|(\\b\\d[\\w.]*)|([A-Za-z_]\\w*)','gm');
+let out='',last=0,m;
+while((m=re.exec(code))){if(m[0]===''){re.lastIndex++;continue}
+out+=esc(code.slice(last,m.index));
+const c=m[1]?'pp':m[2]?'cm':m[3]?'st':m[4]?'nu':KW[l].has(m[5])?'kw':TY[l].has(m[5])?'ty':/^[ \t]*\(/.test(code.slice(re.lastIndex,re.lastIndex+40))?'fn':'';
+out+=c?'<span class="'+c+'">'+esc(m[0])+'</span>':esc(m[0]);last=re.lastIndex}
+return out+esc(code.slice(last))}
+function nlText(v,p,l){const ls=p?v.lastIndexOf('\n',p-1)+1:0;const line=v.slice(ls,p);const ind=line.match(/^[ \t]*/)[0];const prev=line.trimEnd().slice(-1);
+if(prev==='{'&&v[p]==='}')return{t:'\n'+ind+'    \n'+ind,back:ind.length+1};
+return{t:'\n'+ind+((prev==='{'||(l==='python'&&prev===':'))?'    ':''),back:0}}
+function ins(el,t){el.focus();let ok=false;try{ok=document.execCommand('insertText',false,t)}catch(e){}if(!ok){el.setRangeText(t,el.selectionStart,el.selectionEnd,'end');el.dispatchEvent(new Event('input',{bubbles:true}))}}
+function sync(){const c=$('#code');$('#hl').scrollTop=c.scrollTop;$('#hl').scrollLeft=c.scrollLeft;$('#gut').scrollTop=c.scrollTop}
+function render(){const v=$('#code').value;$('#hl').innerHTML=hl(v,LANG)+' ';let g='';for(let i=1,n=v.split('\n').length;i<=n;i++)g+=i+'\n';$('#gut').textContent=g;sync()}
+$('#code').addEventListener('input',render);$('#code').addEventListener('scroll',sync);
+$('#code').addEventListener('beforeinput',e=>{if(e.inputType!=='insertLineBreak'||e.isComposing)return;e.preventDefault();const c=e.target,r=nlText(c.value,c.selectionStart,LANG);ins(c,r.t);if(r.back){const k=c.selectionStart-r.back;c.setSelectionRange(k,k)}});
+let FS=+((function(){try{return localStorage.fs}catch(e){}})())||14;
+function setFS(n){FS=Math.max(11,Math.min(22,n));document.documentElement.style.setProperty('--fs',FS+'px');try{localStorage.fs=FS}catch(e){}sync()}
+$('#fm').onclick=()=>setFS(FS-1);$('#fp').onclick=()=>setFS(FS+1);setFS(FS);
 
 const WK={
 js(){let NEED=0;const raw=m=>self.postMessage(m),post=m=>{if(!NEED)raw(m)};
@@ -197,11 +235,11 @@ $('#out').onclick=()=>{const i=document.querySelector('.tin');if(i)i.focus()};
 
 $('#save').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([$('#code').value],{type:'text/plain'}));a.download='main.'+LANGS[LANG].e;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 $('#open').onclick=()=>$('#file').click();
-$('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const ext=f.name.split('.').pop().toLowerCase();const l=Object.keys(LANGS).find(x=>LANGS[x].e===ext);f.text().then(x=>{if(l)setLang(l);$('#code').value=x});e.target.value=''};
+$('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const ext=f.name.split('.').pop().toLowerCase();const l=Object.keys(LANGS).find(x=>LANGS[x].e===ext);f.text().then(x=>{if(l)setLang(l);$('#code').value=x;render()});e.target.value=''};
 $('#share').onclick=async()=>{const d=JSON.stringify({l:LANG,c:$('#code').value});const u=location.href.split('#')[0]+'#'+btoa(unescape(encodeURIComponent(d)));
 try{await navigator.clipboard.writeText(u);setSt('copied')}catch(e){prompt('Link:',u)}};
 setLang('python');
-try{if(location.hash.length>1){const d=JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1)))));if(LANGS[d.l]){LANG=d.l;setLang(d.l)}$('#code').value=d.c||''}}catch(e){}
+try{if(location.hash.length>1){const d=JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1)))));if(LANGS[d.l]){LANG=d.l;setLang(d.l)}$('#code').value=d.c||'';render()}}catch(e){}
 tr();
 </script>
 </body>
